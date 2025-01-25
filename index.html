@@ -5,14 +5,154 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Encrypted Chat</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="main.css">
-    <script src="main.js"></script>
-    <link rel="icon" type="image/x-icon" href="icon.png">
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #001a00;
+            color: #00ff00;
+        }
+
+        .chat-container {
+            width: 90%;
+            max-width: 600px;
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 255, 0, 0.7);
+            background-color: #003300;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .key-input {
+            margin-bottom: 20px;
+            font-family: 'Courier New', Courier, monospace;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .key-input input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            background-color: #002200;
+            color: #00ff00;
+            font-size: 16px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .key-input input:focus {
+            outline: none;
+            box-shadow: 0 0 12px #00ff00;
+        }
+
+        .chat-box {
+            height: 300px;
+            overflow-y: auto;
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            padding: 10px;
+            background: #002200;
+            margin-bottom: 20px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .chat-box div {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .chat-box .encrypted {
+            background: #004d00;
+            color: #00ff00;
+        }
+
+        .chat-box .decrypted {
+            background: #006600;
+            color: #00ff00;
+        }
+
+        .message-input {
+            display: flex;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .message-input input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #00ff00;
+            border-radius: 10px 0 0 10px;
+            background-color: #002200;
+            color: #00ff00;
+            font-size: 16px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .message-input input:focus {
+            outline: none;
+            box-shadow: 0 0 12px #00ff00;
+        }
+
+        .message-input button {
+            padding: 12px 20px;
+            border: none;
+            background-color: #00cc00;
+            color: #00ff00;
+            font-weight: bold;
+            font-size: 16px;
+            border-radius: 0 10px 10px 0;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .message-input button:hover {
+            background-color: #00ff00;
+            color: #001a00;
+        }
+
+        .clear-history {
+            margin-top: 10px;
+            text-align: center;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .clear-history button {
+            padding: 12px 20px;
+            border: none;
+            background-color: #660000;
+            color: #ff4d4d;
+            font-weight: bold;
+            font-size: 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .clear-history button:hover {
+            background-color: #990000;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .clear-history button:focus {
+            outline: none;
+            box-shadow: 0 0 12px #ff4d4d;
+        }
+        button{
+            font-family: 'Courier New', Courier, monospace;
+        }
+    </style>
 </head>
 <body>
     <div class="chat-container">
+        <h1 align="center"> F . U . T . A </h1>
         <div class="key-input">
-            <input type="text" id="encryptionKey" placeholder="Enter the common encryption key">
+            <input type="text" id="encryptionKey" placeholder="Enter encryption key/password">
         </div>
 
         <div class="chat-box" id="chatBox">
@@ -28,5 +168,84 @@
             <button onclick="clearHistory()">Clear History</button>
         </div>
     </div>
+
+    <script>
+        const chatBox = document.getElementById('chatBox');
+        const encryptionKeyInput = document.getElementById('encryptionKey');
+        const messageInput = document.getElementById('messageInput');
+
+        // Load chat history from local storage
+        let chatHistory = JSON.parse(localStorage.getItem('chatHistory')) || [];
+
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            const key = encryptionKeyInput.value.trim();
+
+            if (!message || !key) {
+                alert('Please enter both a message and an encryption key.');
+                return;
+            }
+
+            // Encrypt the message
+            const encryptedMessage = CryptoJS.AES.encrypt(message, key).toString();
+
+            // Add to chat history
+            chatHistory.push({ encrypted: encryptedMessage });
+            localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+            updateChatBox();
+
+            // Clear the input field
+            messageInput.value = '';
+        }
+
+        function updateChatBox() {
+            chatBox.innerHTML = '';
+            const key = encryptionKeyInput.value.trim();
+
+            chatHistory.forEach((chat) => {
+                const messageDiv = document.createElement('div');
+
+                if (key) {
+                    try {
+                        // Try to decrypt the message
+                        const decryptedBytes = CryptoJS.AES.decrypt(chat.encrypted, key);
+                        const decryptedMessage = decryptedBytes.toString(CryptoJS.enc.Utf8);
+
+                        if (decryptedMessage) {
+                            messageDiv.textContent = `Decrypted: ${decryptedMessage}`;
+                            messageDiv.className = 'decrypted';
+                        } else {
+                            throw new Error('Invalid key');
+                        }
+                    } catch {
+                        messageDiv.textContent = `Encrypted: ${chat.encrypted}`;
+                        messageDiv.className = 'encrypted';
+                    }
+                } else {
+                    messageDiv.textContent = `Encrypted: ${chat.encrypted}`;
+                    messageDiv.className = 'encrypted';
+                }
+
+                chatBox.appendChild(messageDiv);
+            });
+
+            // Scroll to the bottom of the chat box
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function clearHistory() {
+            if (confirm('Are you sure you want to clear the chat history?')) {
+                chatHistory = [];
+                localStorage.removeItem('chatHistory');
+                updateChatBox();
+            }
+        }
+
+        // Update chat box whenever the encryption key changes
+        encryptionKeyInput.addEventListener('input', updateChatBox);
+
+        // Initialize chat box with history
+        updateChatBox();
+    </script>
 </body>
 </html>
