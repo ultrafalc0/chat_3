@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encrypted Chat</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <link rel="stylesheet" href="main.css">
+    <script src="main.js"></script>
+    <link rel="icon" type="image/x-icon" href="icon.png">
+</head>
+<body>
+    <div class="chat-container">
+        <div class="key-input">
+            <input type="text" id="encryptionKey" placeholder="Enter the common encryption key">
+        </div>
+
+        <div class="chat-box" id="chatBox">
+            <!-- Chat messages will appear here -->
+        </div>
+
+        <div class="message-input">
+            <input type="text" id="messageInput" placeholder="Type your message">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+
+        <div class="clear-history">
+            <button onclick="clearHistory()">Clear History</button>
+        </div>
+    </div>
+</body>
+</html>
