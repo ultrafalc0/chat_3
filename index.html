@@ -1,20 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Encrypted Chat</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Courier New', Courier, monospace;
             margin: 0;
             padding: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
-            background-color: #000;
-            color: #0f0;
+            background-color: #001a00;
+            color: #00ff00;
         }
 
         .chat-container {
@@ -22,172 +23,229 @@
             max-width: 600px;
             margin-top: 20px;
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 255, 0, 0.4);
-            background-color: #111;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 255, 0, 0.7);
+            background-color: #003300;
+            font-family: 'Courier New', Courier, monospace;
         }
 
-        .key-input input, .message-input input {
+        .key-input {
+            margin-bottom: 20px;
+            font-family: 'Courier New', Courier, monospace;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .key-input input {
             width: 100%;
             padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #0f0;
-            border-radius: 5px;
-            background-color: #222;
-            color: #0f0;
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            background-color: #002200;
+            color: #00ff00;
+            font-size: 16px;
+            font-family: 'Courier New', Courier, monospace;
         }
 
-        .message-input {
-            display: flex;
-        }
-
-        .message-input button {
-            padding: 10px 20px;
-            background-color: #0a0;
-            color: #0f0;
-            border-radius: 0 5px 5px 0;
-            cursor: pointer;
-            border: none;
-        }
-
-        .message-input button:hover {
-            background-color: #0c0;
+        .key-input input:focus {
+            outline: none;
+            box-shadow: 0 0 12px #00ff00;
         }
 
         .chat-box {
             height: 300px;
             overflow-y: auto;
-            border: 1px solid #0f0;
-            border-radius: 5px;
+            border: 2px solid #00ff00;
+            border-radius: 10px;
             padding: 10px;
-            background: #111;
+            background: #002200;
+            margin-bottom: 20px;
+            font-family: 'Courier New', Courier, monospace;
         }
 
         .chat-box div {
             margin-bottom: 10px;
-            padding: 8px;
-            border-radius: 5px;
+            padding: 10px;
+            border-radius: 10px;
         }
 
         .chat-box .encrypted {
-            background: #014f01;
+            background: #004d00;
+            color: #00ff00;
         }
 
         .chat-box .decrypted {
-            background: #062d06;
+            background: #006600;
+            color: #00ff00;
+        }
+
+        .message-input {
+            display: flex;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .message-input input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #00ff00;
+            border-radius: 10px 0 0 10px;
+            background-color: #002200;
+            color: #00ff00;
+            font-size: 16px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .message-input input:focus {
+            outline: none;
+            box-shadow: 0 0 12px #00ff00;
+        }
+
+        .message-input button {
+            padding: 12px 20px;
+            border: none;
+            background-color: #00cc00;
+            color: #00ff00;
+            font-weight: bold;
+            font-size: 16px;
+            border-radius: 0 10px 10px 0;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .message-input button:hover {
+            background-color: #00ff00;
+            color: #001a00;
+        }
+
+        .clear-history {
+            margin-top: 10px;
+            text-align: center;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .clear-history button {
+            padding: 12px 20px;
+            border: none;
+            background-color: #660000;
+            color: #ff4d4d;
+            font-weight: bold;
+            font-size: 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .clear-history button:hover {
+            background-color: #990000;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .clear-history button:focus {
+            outline: none;
+            box-shadow: 0 0 12px #ff4d4d;
+        }
+        button{
+            font-family: 'Courier New', Courier, monospace;
         }
     </style>
 </head>
 <body>
     <div class="chat-container">
+        <h1 align="center"> F . U . T . A </h1>
         <div class="key-input">
             <input type="text" id="encryptionKey" placeholder="Enter encryption key/password">
         </div>
 
         <div class="chat-box" id="chatBox">
-            <!-- Messages will appear here -->
+            <!-- Chat messages will appear here -->
         </div>
 
         <div class="message-input">
             <input type="text" id="messageInput" placeholder="Type your message">
-            <button id="sendButton">Send</button>
+            <button onclick="sendMessage()">Send</button>
+        </div>
+
+        <div class="clear-history">
+            <button onclick="clearHistory()">Clear History</button>
         </div>
     </div>
 
     <script>
-        const socketUrl = 'wss://beneficial-heartbreaking-cephalopod.glitch.me';
-        let socket;
-    
+        const socket = io('http://localhost:3000'); // Change to your server URL
         const chatBox = document.getElementById('chatBox');
         const encryptionKeyInput = document.getElementById('encryptionKey');
         const messageInput = document.getElementById('messageInput');
-        const sendButton = document.getElementById('sendButton');
-    
-        function connectWebSocket() {
-            socket = new WebSocket(socketUrl);
-    
-            socket.addEventListener('open', () => {
-                console.log('Connected to WebSocket server');
-            });
-    
-            socket.addEventListener('message', (event) => {
-                const key = encryptionKeyInput.value.trim();
-                const data = JSON.parse(event.data); // Parse the received JSON message
-    
-                if (data.type === 'history') {
-                    // Load chat history
-                    data.messages.forEach((encryptedMessage) => {
-                        displayMessage(encryptedMessage, key);
-                    });
-                } else if (data.type === 'message') {
-                    // Display new incoming message
-                    displayMessage(data.message, key);
-                }
-            });
-    
-            socket.addEventListener('close', () => {
-                console.log('WebSocket connection closed. Reconnecting...');
-                setTimeout(connectWebSocket, 3000);
-            });
-    
-            socket.addEventListener('error', (error) => {
-                console.error('WebSocket error:', error);
-            });
-        }
-    
-        function sendMessage() {
-            const message = messageInput.value.trim();
-            const key = encryptionKeyInput.value.trim();
-    
-            if (!message || !key) {
-                alert('Please enter both a message and an encryption key.');
-                return;
-            }
-    
-            if (socket.readyState !== WebSocket.OPEN) {
-                alert('WebSocket connection is not open. Please try again later.');
-                return;
-            }
-    
-            // Encrypt the message before sending
-            const encryptedMessage = CryptoJS.AES.encrypt(message, key).toString();
-            socket.send(JSON.stringify(encryptedMessage)); // Send as a JSON string
-    
-            messageInput.value = '';
-        }
-    
-        function displayMessage(encryptedMessage, key) {
-            const messageDiv = document.createElement('div');
-    
-            try {
-                // Decrypt the message using the key
-                const decryptedBytes = CryptoJS.AES.decrypt(encryptedMessage, key);
-                const decryptedMessage = decryptedBytes.toString(CryptoJS.enc.Utf8);
-    
-                if (decryptedMessage) {
-                    messageDiv.textContent = `Decrypted: ${decryptedMessage}`;
-                    messageDiv.className = 'decrypted';
-                } else {
-                    throw new Error('Invalid decryption key.');
-                }
-            } catch {
-                messageDiv.textContent = `Encrypted: ${encryptedMessage}`;
-                messageDiv.className = 'encrypted';
-            }
-    
-            chatBox.appendChild(messageDiv);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
-    
-        sendButton.addEventListener('click', sendMessage);
-        messageInput.addEventListener('keypress', (event) => {
-            if (event.key === 'Enter') {
-                sendMessage();
-            }
+      
+        let chatHistory = [];
+      
+        // Receive initial chat history
+        socket.on('chatHistory', (history) => {
+          chatHistory = history;
+          updateChatBox();
         });
-    
-        connectWebSocket();
-    </script>
-    
+      
+        // Handle new messages from server
+        socket.on('receiveMessage', (message) => {
+          chatHistory.push(message);
+          updateChatBox();
+        });
+      
+        // Handle history cleared
+        socket.on('historyCleared', () => {
+          chatHistory = [];
+          updateChatBox();
+        });
+      
+        function sendMessage() {
+          const message = messageInput.value.trim();
+          const key = encryptionKeyInput.value.trim();
+      
+          if (!message || !key) {
+            alert('Please enter both a message and an encryption key.');
+            return;
+          }
+      
+          const encryptedMessage = CryptoJS.AES.encrypt(message, key).toString();
+          socket.emit('sendMessage', encryptedMessage);
+          messageInput.value = '';
+        }
+      
+        function updateChatBox() {
+          chatBox.innerHTML = '';
+          const key = encryptionKeyInput.value.trim();
+      
+          chatHistory.forEach((chat) => {
+            const messageDiv = document.createElement('div');
+            
+            try {
+              const decryptedBytes = CryptoJS.AES.decrypt(chat.encrypted, key);
+              const decryptedMessage = decryptedBytes.toString(CryptoJS.enc.Utf8);
+              
+              if (decryptedMessage) {
+                messageDiv.textContent = `Decrypted: ${decryptedMessage}`;
+                messageDiv.className = 'decrypted';
+              } else {
+                throw new Error('Invalid key');
+              }
+            } catch {
+              messageDiv.textContent = `Encrypted: ${chat.encrypted}`;
+              messageDiv.className = 'encrypted';
+            }
+      
+            chatBox.appendChild(messageDiv);
+          });
+      
+          chatBox.scrollTop = chatBox.scrollHeight;
+        }
+      
+        function clearHistory() {
+          if (confirm('Are you sure you want to clear the chat history?')) {
+            socket.emit('clearHistory');
+          }
+        }
+      
+        encryptionKeyInput.addEventListener('input', updateChatBox);
+        updateChatBox();
+      </script>
 </body>
 </html>
