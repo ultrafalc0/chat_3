@@ -1,12 +1,122 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Encrypted Chat</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, query, orderBy, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCZMY0CCVTGjw2FngP7Q5jbGLKuwlpeWSc",
+            authDomain: "encryptedchat-8cfcb.firebaseapp.com",
+            projectId: "encryptedchat-8cfcb",
+            storageBucket: "encryptedchat-8cfcb.firebasestorage.app",
+            messagingSenderId: "1220441557",
+            appId: "1:1220441557:web:2f82c9b04a866d13a3b95c"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const messagesCollection = collection(db, "messages");
+
+        // DOM elements
+        const chatBox = document.getElementById('chatBox');
+        const encryptionKeyInput = document.getElementById('encryptionKey');
+        const messageInput = document.getElementById('messageInput');
+
+        // Load chat history in real-time
+        const loadChat = () => {
+            const q = query(messagesCollection, orderBy("timestamp"));
+            onSnapshot(q, (snapshot) => {
+                chatBox.innerHTML = ''; // Clear the chat box
+                snapshot.forEach((doc) => {
+                    const message = doc.data();
+                    displayMessage(message.encrypted);
+                });
+            });
+        };
+
+        // Display a message in the chat box
+        const displayMessage = (encryptedMessage) => {
+            const messageDiv = document.createElement('div');
+            const key = encryptionKeyInput.value.trim();
+
+            if (key) {
+                try {
+                    const decryptedBytes = CryptoJS.AES.decrypt(encryptedMessage, key);
+                    const decryptedMessage = decryptedBytes.toString(CryptoJS.enc.Utf8);
+
+                    if (decryptedMessage) {
+                        messageDiv.textContent = `Decrypted: ${decryptedMessage}`;
+                        messageDiv.className = 'decrypted';
+                    } else {
+                        throw new Error('Invalid key');
+                    }
+                } catch {
+                    messageDiv.textContent = `Encrypted: ${encryptedMessage}`;
+                    messageDiv.className = 'encrypted';
+                }
+            } else {
+                messageDiv.textContent = `Encrypted: ${encryptedMessage}`;
+                messageDiv.className = 'encrypted';
+            }
+
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll to the bottom
+        };
+
+        // Send a message
+        const sendMessage = async () => {
+            const message = messageInput.value.trim();
+            const key = encryptionKeyInput.value.trim();
+
+            if (!message || !key) {
+                alert('Please enter both a message and an encryption key.');
+                return;
+            }
+
+            // Encrypt the message
+            const encryptedMessage = CryptoJS.AES.encrypt(message, key).toString();
+
+            // Add the message to Firestore
+            try {
+                await addDoc(messagesCollection, {
+                    encrypted: encryptedMessage,
+                    timestamp: serverTimestamp()
+                });
+                messageInput.value = ''; // Clear the input field
+            } catch (error) {
+                console.error("Error sending message: ", error);
+                alert('Failed to send message. Please try again.');
+            }
+        };
+
+        // Clear chat history
+        const clearHistory = async () => {
+            if (confirm('Are you sure you want to clear all messages?')) {
+                const snapshot = await getDocs(messagesCollection);
+                snapshot.forEach(async (doc) => {
+                    await deleteDoc(doc.ref);
+                });
+            }
+        };
+
+        // Event listeners
+        document.getElementById('sendButton').addEventListener('click', sendMessage);
+        document.getElementById('clearButton').addEventListener('click', clearHistory);
+        encryptionKeyInput.addEventListener('input', loadChat);
+
+        // Initialize chat
+        loadChat();
+    </script>
     <style>
+        /* Paste your existing CSS styles here */
         body {
             font-family: 'Courier New', Courier, monospace;
             margin: 0;
@@ -31,7 +141,6 @@
 
         .key-input {
             margin-bottom: 20px;
-            font-family: 'Courier New', Courier, monospace;
             font-family: 'Courier New', Courier, monospace;
         }
 
@@ -144,108 +253,29 @@
             outline: none;
             box-shadow: 0 0 12px #ff4d4d;
         }
-        button{
+
+        button {
             font-family: 'Courier New', Courier, monospace;
         }
     </style>
 </head>
 <body>
     <div class="chat-container">
-        <h1 align="center"> F . U . T . A </h1>
+        <h1 align="center">Encrypted Chat</h1>
         <div class="key-input">
-            <input type="text" id="encryptionKey" placeholder="Enter encryption key/password">
+            <input type="text" id="encryptionKey" placeholder="Enter shared secret key">
         </div>
 
-        <div class="chat-box" id="chatBox">
-            <!-- Chat messages will appear here -->
-        </div>
+        <div class="chat-box" id="chatBox"></div>
 
         <div class="message-input">
             <input type="text" id="messageInput" placeholder="Type your message">
-            <button onclick="sendMessage()">Send</button>
+            <button id="sendButton">Send</button>
         </div>
 
         <div class="clear-history">
-            <button onclick="clearHistory()">Clear History</button>
+            <button id="clearButton">Clear History</button>
         </div>
     </div>
-
-    <script>
-        const socket = io('http://localhost:3000'); // Change to your server URL
-        const chatBox = document.getElementById('chatBox');
-        const encryptionKeyInput = document.getElementById('encryptionKey');
-        const messageInput = document.getElementById('messageInput');
-      
-        let chatHistory = [];
-      
-        // Receive initial chat history
-        socket.on('chatHistory', (history) => {
-          chatHistory = history;
-          updateChatBox();
-        });
-      
-        // Handle new messages from server
-        socket.on('receiveMessage', (message) => {
-          chatHistory.push(message);
-          updateChatBox();
-        });
-      
-        // Handle history cleared
-        socket.on('historyCleared', () => {
-          chatHistory = [];
-          updateChatBox();
-        });
-      
-        function sendMessage() {
-          const message = messageInput.value.trim();
-          const key = encryptionKeyInput.value.trim();
-      
-          if (!message || !key) {
-            alert('Please enter both a message and an encryption key.');
-            return;
-          }
-      
-          const encryptedMessage = CryptoJS.AES.encrypt(message, key).toString();
-          socket.emit('sendMessage', encryptedMessage);
-          messageInput.value = '';
-        }
-      
-        function updateChatBox() {
-          chatBox.innerHTML = '';
-          const key = encryptionKeyInput.value.trim();
-      
-          chatHistory.forEach((chat) => {
-            const messageDiv = document.createElement('div');
-            
-            try {
-              const decryptedBytes = CryptoJS.AES.decrypt(chat.encrypted, key);
-              const decryptedMessage = decryptedBytes.toString(CryptoJS.enc.Utf8);
-              
-              if (decryptedMessage) {
-                messageDiv.textContent = `Decrypted: ${decryptedMessage}`;
-                messageDiv.className = 'decrypted';
-              } else {
-                throw new Error('Invalid key');
-              }
-            } catch {
-              messageDiv.textContent = `Encrypted: ${chat.encrypted}`;
-              messageDiv.className = 'encrypted';
-            }
-      
-            chatBox.appendChild(messageDiv);
-          });
-      
-          chatBox.scrollTop = chatBox.scrollHeight;
-        }
-      
-        function clearHistory() {
-          if (confirm('Are you sure you want to clear the chat history?')) {
-            socket.emit('clearHistory');
-          }
-        }
-      
-        encryptionKeyInput.addEventListener('input', updateChatBox);
-        updateChatBox();
-      </script>
 </body>
 </html>
